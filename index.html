@@ -283,11 +283,22 @@
       } catch (e) {}
     }
 
+    // -------------------------------------------------------------------------
+    // 60 FPS FIXED TIMESTEP GAME LOOP
+    // Prevents game from running at 2x/3x turbo speed on 90Hz, 120Hz, or 144Hz screens!
+    // -------------------------------------------------------------------------
+    const TARGET_FPS = 60;
+    const STEP = 1000 / TARGET_FPS; // 16.66ms per physics update
+    let lastTime = 0;
+    let accumulator = 0;
+    let spawnTimer = 0;
+    let hoverTime = 0;
+
     function resetGame() {
       rocket = new Rocket(80, SCREEN_HEIGHT / 2 - 20);
       obstacles = [];
       score = 0;
-      lastSpawnTime = performance.now();
+      spawnTimer = 0;
     }
 
     function handleAction() {
@@ -332,18 +343,20 @@
     }
     debugToggleBtn.addEventListener("click", toggleDebug);
 
-    function gameLoop(time) {
+    function updatePhysics() {
       const starSpeed = gameState === STATE_PLAYING ? 1.0 : 0.4;
       stars.forEach((s) => s.update(starSpeed));
 
       if (gameState === STATE_START) {
-        rocket.y = SCREEN_HEIGHT / 2 - 20 + Math.sin(time * 0.005) * 8;
+        hoverTime += 0.05;
+        rocket.y = SCREEN_HEIGHT / 2 - 20 + Math.sin(hoverTime) * 8;
       } else if (gameState === STATE_PLAYING) {
         rocket.update();
 
-        if (time - lastSpawnTime > OBSTACLE_FREQUENCY) {
+        spawnTimer += STEP;
+        if (spawnTimer >= OBSTACLE_FREQUENCY) {
           obstacles.push(new Obstacle(SCREEN_WIDTH + 10));
-          lastSpawnTime = time;
+          spawnTimer = 0;
         }
 
         for (let i = 0; i < obstacles.length; i++) {
@@ -380,8 +393,10 @@
           } catch (e) {}
         }
       }
+    }
 
-      // Draw
+    function render(time) {
+      // 1. Background
       if (imgBackground.complete && imgBackground.naturalWidth > 0) {
         ctx.drawImage(imgBackground, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
       } else {
@@ -389,10 +404,16 @@
         ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
       }
 
+      // 2. Stars
       stars.forEach((s) => s.draw(ctx, time));
+
+      // 3. Obstacles
       obstacles.forEach((obs) => obs.draw(ctx));
+
+      // 4. Rocket
       rocket.draw(ctx);
 
+      // 5. Hitbox Debug Overlay
       if (debugHitbox) {
         ctx.strokeStyle = "#4cd964";
         ctx.lineWidth = 2;
@@ -412,6 +433,7 @@
         });
       }
 
+      // 6. UI Overlays
       ctx.textAlign = "center";
       if (gameState === STATE_START) {
         ctx.fillStyle = "rgba(20, 28, 50, 0.75)";
@@ -455,9 +477,28 @@
         ctx.font = "bold 15px sans-serif";
         ctx.fillText("TAP to Retry", SCREEN_WIDTH / 2, 350);
       }
+    }
 
+    function gameLoop(time) {
+      if (!lastTime) lastTime = time;
+      let dt = time - lastTime;
+      lastTime = time;
+
+      // Cap delta time to prevent spiral of death on background tab switches
+      if (dt > 100) dt = 100;
+      accumulator += dt;
+
+      // Run fixed 60 FPS physics updates
+      while (accumulator >= STEP) {
+        updatePhysics();
+        accumulator -= STEP;
+      }
+
+      render(time);
       requestAnimationFrame(gameLoop);
     }
+
+    // Start single loop
     requestAnimationFrame(gameLoop);
   </script>
 </body>
