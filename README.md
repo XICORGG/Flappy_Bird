@@ -23,7 +23,7 @@ python main.py
   ```
   and open `http://localhost:5000`.
 - **Deploy to Render**:
-  - Connect your repo on [render.com](https://render.com)
+  - Connect your repo on [render.com](https://flappy-bird-ffr0.onrender.com/)
   - Build Command: `pip install -r requirements.txt`
   - Start Command: `gunicorn app:app`
   - Play on any phone or PC!
