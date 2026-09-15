@@ -23,8 +23,8 @@ python main.py
   ```
   and open `http://localhost:5000`.
 - **Deploy to Render**:
-  - Full step-by-step instructions: see [RENDER_DEPLOY.md](RENDER_DEPLOY.md)
   - Connect your repo on [render.com](https://render.com)
+  - Build Command: `pip install -r requirements.txt`
   - Start Command: `gunicorn app:app`
   - Play on any phone or PC!
 
@@ -37,7 +37,7 @@ Flappy_Bird/
 ├── main.py            # The Python game (single clean file for students)
 ├── app.py             # Simple web server for Render (15 lines)
 ├── index.html         # Web edition (works in any browser & mobile)
-├── requirements.txt   # Dependencies (pygame, Flask, gunicorn)
+├── requirements.txt   # Web dependencies (Flask, gunicorn)
 ├── README.md          # This guide
 └── assets/
     ├── images/        # rocket.png, obstacle.png, background.png
