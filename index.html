@@ -66,6 +66,20 @@
       z-index: 12;
       backdrop-filter: blur(4px);
     }
+    #audio-toggle-btn {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(20, 28, 48, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #fff;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      z-index: 12;
+      backdrop-filter: blur(4px);
+    }
   </style>
 </head>
 <body>
@@ -74,6 +88,7 @@
       <span><strong style="color:#4cd964;">GREEN</strong>: Sprite | <strong style="color:#ff3b30;">RED</strong>: Buggy Hitbox</span>
       <span style="color:#ffd700;">[BUG HUNT]</span>
     </div>
+    <button id="audio-toggle-btn" title="Toggle Sound ON/OFF">🔊 Sound: ON</button>
     <button id="debug-toggle-btn" title="Toggle Hitbox Debug View">Hitbox: OFF</button>
     <canvas id="gameCanvas" width="400" height="600"></canvas>
   </div>
@@ -83,6 +98,7 @@
     const ctx = canvas.getContext("2d");
     const debugBanner = document.getElementById("debug-banner");
     const debugToggleBtn = document.getElementById("debug-toggle-btn");
+    const audioToggleBtn = document.getElementById("audio-toggle-btn");
 
     const SCREEN_WIDTH = 400;
     const SCREEN_HEIGHT = 600;
@@ -104,6 +120,7 @@
     let score = 0;
     let highScore = 0;
     let debugHitbox = false;
+    let audioEnabled = true;
     let lastSpawnTime = 0;
 
     const imgRocket = new Image();
@@ -175,10 +192,12 @@
       }
       thrust() {
         this.velocityY = THRUST_IMPULSE;
-        try {
-          sndThrust.currentTime = 0;
-          sndThrust.play().catch(() => {});
-        } catch (e) {}
+        if (audioEnabled) {
+          try {
+            sndThrust.currentTime = 0;
+            sndThrust.play().catch(() => {});
+          } catch (e) {}
+        }
       }
       update() {
         this.velocityY += GRAVITY;
@@ -275,12 +294,14 @@
       unlockAudio();
       gameState = STATE_PLAYING;
       rocket.thrust();
-      try {
-        sndLose.pause();
-        sndLose.currentTime = 0;
-        musicBg.currentTime = 0;
-        musicBg.play().catch(() => {});
-      } catch (e) {}
+      if (audioEnabled) {
+        try {
+          sndLose.pause();
+          sndLose.currentTime = 0;
+          musicBg.currentTime = 0;
+          musicBg.play().catch(() => {});
+        } catch (e) {}
+      }
     }
 
     // -------------------------------------------------------------------------
@@ -313,13 +334,13 @@
     }
 
     window.addEventListener("touchstart", (e) => {
-      if (e.target === debugToggleBtn) return;
+      if (e.target === debugToggleBtn || e.target === audioToggleBtn) return;
       e.preventDefault();
       handleAction();
     }, { passive: false });
 
     window.addEventListener("mousedown", (e) => {
-      if (e.target === debugToggleBtn) return;
+      if (e.target === debugToggleBtn || e.target === audioToggleBtn) return;
       handleAction();
     });
 
@@ -332,8 +353,30 @@
         startGameplay();
       } else if (e.code === "KeyH") {
         toggleDebug();
+      } else if (e.code === "KeyM") {
+        toggleAudio();
       }
     });
+
+    function toggleAudio() {
+      audioEnabled = !audioEnabled;
+      audioToggleBtn.textContent = audioEnabled ? "🔊 Sound: ON" : "🔇 Sound: OFF";
+      audioToggleBtn.style.color = audioEnabled ? "#ffffff" : "#ff6b6b";
+      audioToggleBtn.style.borderColor = audioEnabled ? "rgba(255, 255, 255, 0.3)" : "rgba(235, 50, 65, 0.7)";
+      if (!audioEnabled) {
+        try {
+          musicBg.pause();
+          sndLose.pause();
+        } catch (e) {}
+      } else {
+        if (gameState === STATE_PLAYING) {
+          try {
+            musicBg.play().catch(() => {});
+          } catch (e) {}
+        }
+      }
+    }
+    audioToggleBtn.addEventListener("click", toggleAudio);
 
     function toggleDebug() {
       debugHitbox = !debugHitbox;
@@ -365,10 +408,12 @@
           if (!obs.passed && obs.x + obs.width < rocket.x) {
             obs.passed = true;
             score++;
-            try {
-              sndScore.currentTime = 0;
-              sndScore.play().catch(() => {});
-            } catch (e) {}
+            if (audioEnabled) {
+              try {
+                sndScore.currentTime = 0;
+                sndScore.play().catch(() => {});
+              } catch (e) {}
+            }
             if (score > highScore) highScore = score;
           }
         }
@@ -388,8 +433,10 @@
           gameState = STATE_GAME_OVER;
           try {
             musicBg.pause();
-            sndLose.currentTime = 0;
-            sndLose.play().catch(() => {});
+            if (audioEnabled) {
+              sndLose.currentTime = 0;
+              sndLose.play().catch(() => {});
+            }
           } catch (e) {}
         }
       }
@@ -447,6 +494,10 @@
         ctx.fillStyle = "#ffd700";
         ctx.font = "bold 18px sans-serif";
         ctx.fillText("TAP to Launch", SCREEN_WIDTH / 2, 367);
+
+        ctx.fillStyle = "#18203a";
+        ctx.font = "bold 13px sans-serif";
+        ctx.fillText("Tap 🔊 button or press 'M' to mute", SCREEN_WIDTH / 2, 415);
       } else if (gameState === STATE_PLAYING) {
         ctx.fillStyle = "rgba(20, 28, 50, 0.75)";
         ctx.fillRect(SCREEN_WIDTH / 2 - 60, 20, 120, 36);

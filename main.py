@@ -6,6 +6,7 @@ A beginner-friendly Flappy Bird style game in Python using Pygame.
 
 Controls:
   - SPACE, UP ARROW, or TAP SCREEN : Fire thrusters (Jump) / Launch / Retry
+  - M                             : Toggle Audio ON/OFF (Mute / Unmute)
   - H                             : Toggle Hitbox Debug Mode (visualize bug!)
   - R                             : Restart when Game Over
   - ESC                           : Quit game
@@ -53,6 +54,7 @@ class SoundManager:
     """Handles sound effects and background music for the game."""
     def __init__(self):
         self.sounds_enabled = False
+        self.muted = False
         self.lose_sound = None
         self.sounds = {}
         self.gameplay_music_file = None
@@ -65,6 +67,17 @@ class SoundManager:
             return
 
         self.load_sounds()
+
+    def toggle_mute(self, is_playing=False):
+        """Toggles sound on and off."""
+        self.muted = not self.muted
+        if self.muted:
+            self.stop_gameplay_music()
+            self.stop_lose()
+        else:
+            if is_playing:
+                self.play_gameplay_music()
+        return not self.muted
 
     def load_sounds(self):
         sound_files = {
@@ -96,7 +109,7 @@ class SoundManager:
 
     def play_gameplay_music(self):
         self.stop_lose()
-        if self.sounds_enabled and self.gameplay_music_file:
+        if self.sounds_enabled and not self.muted and self.gameplay_music_file:
             try:
                 pygame.mixer.music.load(self.gameplay_music_file)
                 pygame.mixer.music.set_volume(0.65)
@@ -113,6 +126,8 @@ class SoundManager:
 
     def play_lose(self):
         self.stop_gameplay_music()
+        if self.muted:
+            return
         if self.lose_sound:
             try:
                 self.lose_sound.play()
@@ -129,11 +144,11 @@ class SoundManager:
                 pass
 
     def play_thrust(self):
-        if self.sounds_enabled and "thrust" in self.sounds:
+        if self.sounds_enabled and not self.muted and "thrust" in self.sounds:
             self.sounds["thrust"].play()
 
     def play_score(self):
-        if self.sounds_enabled and "score" in self.sounds:
+        if self.sounds_enabled and not self.muted and "score" in self.sounds:
             self.sounds["score"].play()
 
 
@@ -400,6 +415,10 @@ class FlappyRocketGame:
         self.debug_hitbox = False
         self.highscore = 0
 
+        # On-screen toggle buttons (Sound at top-left, Hitbox at top-right)
+        self.btn_sound_rect = pygame.Rect(10, 10, 105, 28)
+        self.btn_hitbox_rect = pygame.Rect(SCREEN_WIDTH - 115, 10, 105, 28)
+
         self.reset_game()
         self.state = self.STATE_START
 
@@ -453,8 +472,13 @@ class FlappyRocketGame:
                     pygame.quit()
                     sys.exit()
 
+                # Toggle Hitbox Debug Mode with 'H'
                 if event.key == pygame.K_h:
                     self.debug_hitbox = not self.debug_hitbox
+
+                # Toggle Audio Sound ON/OFF with 'M'
+                if event.key == pygame.K_m:
+                    self.audio.toggle_mute(self.state == self.STATE_PLAYING)
 
                 if event.key in (pygame.K_SPACE, pygame.K_UP):
                     if self.state == self.STATE_START:
@@ -472,6 +496,20 @@ class FlappyRocketGame:
                     self.start_gameplay()
 
             elif event.type in (pygame.MOUSEBUTTONDOWN, pygame.FINGERDOWN):
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    pos = event.pos
+                else:
+                    pos = (int(event.x * SCREEN_WIDTH), int(event.y * SCREEN_HEIGHT))
+
+                # Check if player tapped top buttons
+                if self.btn_sound_rect.collidepoint(pos):
+                    self.audio.toggle_mute(self.state == self.STATE_PLAYING)
+                    continue
+
+                if self.btn_hitbox_rect.collidepoint(pos):
+                    self.debug_hitbox = not self.debug_hitbox
+                    continue
+
                 if self.state == self.STATE_START:
                     self.start_gameplay()
                 elif self.state == self.STATE_PLAYING:
@@ -566,6 +604,7 @@ class FlappyRocketGame:
 
         self.rocket.draw(self.screen)
 
+        # Draw Hitbox Debug Outlines
         if self.debug_hitbox:
             pygame.draw.rect(self.screen, COLOR_GREEN, self.rocket.get_visual_rect(), 2)
             pygame.draw.rect(self.screen, COLOR_RED, self.rocket.get_hitbox(), 2)
@@ -575,11 +614,38 @@ class FlappyRocketGame:
 
             debug_surf = pygame.Surface((SCREEN_WIDTH, 42), pygame.SRCALPHA)
             debug_surf.fill((10, 15, 25, 210))
-            self.screen.blit(debug_surf, (0, 0))
+            self.screen.blit(debug_surf, (0, 42))
             lbl1 = self.font_small.render("[DEBUG] GREEN: Sprite | RED: Active Hitbox", True, (240, 240, 240))
             lbl2 = self.font_small.render("Notice the offset bug! Press 'H' to hide", True, COLOR_GOLD)
-            self.screen.blit(lbl1, (12, 4))
-            self.screen.blit(lbl2, (12, 21))
+            self.screen.blit(lbl1, (12, 46))
+            self.screen.blit(lbl2, (12, 63))
+
+        # --- On-Screen Buttons (Sound & Hitbox) ---
+        # Sound Button (Top-Left)
+        snd_surf = pygame.Surface((self.btn_sound_rect.width, self.btn_sound_rect.height), pygame.SRCALPHA)
+        if not self.audio.muted:
+            snd_surf.fill((20, 28, 50, 195))
+            pygame.draw.rect(snd_surf, (0, 185, 235), (0, 0, self.btn_sound_rect.width, self.btn_sound_rect.height), 1, border_radius=6)
+            self.screen.blit(snd_surf, self.btn_sound_rect.topleft)
+            self.render_text_with_shadow("SOUND: ON", self.font_small, COLOR_WHITE, (self.btn_sound_rect.centerx, self.btn_sound_rect.centery))
+        else:
+            snd_surf.fill((45, 18, 22, 215))
+            pygame.draw.rect(snd_surf, COLOR_RED, (0, 0, self.btn_sound_rect.width, self.btn_sound_rect.height), 1, border_radius=6)
+            self.screen.blit(snd_surf, self.btn_sound_rect.topleft)
+            self.render_text_with_shadow("SOUND: OFF", self.font_small, COLOR_RED, (self.btn_sound_rect.centerx, self.btn_sound_rect.centery))
+
+        # Hitbox Button (Top-Right)
+        hit_surf = pygame.Surface((self.btn_hitbox_rect.width, self.btn_hitbox_rect.height), pygame.SRCALPHA)
+        if self.debug_hitbox:
+            hit_surf.fill((20, 48, 30, 215))
+            pygame.draw.rect(hit_surf, COLOR_GREEN, (0, 0, self.btn_hitbox_rect.width, self.btn_hitbox_rect.height), 1, border_radius=6)
+            self.screen.blit(hit_surf, self.btn_hitbox_rect.topleft)
+            self.render_text_with_shadow("HITBOX: ON", self.font_small, COLOR_GREEN, (self.btn_hitbox_rect.centerx, self.btn_hitbox_rect.centery))
+        else:
+            hit_surf.fill((20, 28, 50, 195))
+            pygame.draw.rect(hit_surf, (255, 255, 255, 70), (0, 0, self.btn_hitbox_rect.width, self.btn_hitbox_rect.height), 1, border_radius=6)
+            self.screen.blit(hit_surf, self.btn_hitbox_rect.topleft)
+            self.render_text_with_shadow("HITBOX: OFF", self.font_small, (220, 225, 240), (self.btn_hitbox_rect.centerx, self.btn_hitbox_rect.centery))
 
         if self.state == self.STATE_START:
             badge_surf = pygame.Surface((310, 56), pygame.SRCALPHA)
@@ -594,15 +660,15 @@ class FlappyRocketGame:
             self.screen.blit(btn_surf, (SCREEN_WIDTH // 2 - 130, 345))
             self.render_text_with_shadow("TAP or SPACE to Launch", self.font_main, COLOR_GOLD, (SCREEN_WIDTH // 2, 365))
 
-            self.render_text_with_shadow("Press 'H' for Hitbox Debug Mode", self.font_small, COLOR_TEXT_DARK, (SCREEN_WIDTH // 2, 415), shadow_color=(255, 255, 255, 180), offset=(1, 1))
+            self.render_text_with_shadow("Press 'M' or tap Sound button to Mute", self.font_small, COLOR_TEXT_DARK, (SCREEN_WIDTH // 2, 415), shadow_color=(255, 255, 255, 180), offset=(1, 1))
 
         elif self.state == self.STATE_PLAYING:
-            hud_w, hud_h = 150, 38
+            hud_w, hud_h = 130, 32
             hud_x = SCREEN_WIDTH // 2 - hud_w // 2
-            hud_y = 48 if self.debug_hitbox else 20
+            hud_y = 88 if self.debug_hitbox else 8
             hud_surf = pygame.Surface((hud_w, hud_h), pygame.SRCALPHA)
             hud_surf.fill((20, 28, 50, 195))
-            pygame.draw.rect(hud_surf, COLOR_GOLD, (0, 0, hud_w, hud_h), 2, border_radius=10)
+            pygame.draw.rect(hud_surf, COLOR_GOLD, (0, 0, hud_w, hud_h), 2, border_radius=8)
             self.screen.blit(hud_surf, (hud_x, hud_y))
             self.render_text_with_shadow(f"SCORE: {self.score}", self.font_hud, COLOR_WHITE, (SCREEN_WIDTH // 2, hud_y + hud_h // 2))
 

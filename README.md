@@ -12,7 +12,8 @@ pip install pygame
 python main.py
 ```
 - **SPACE / UP / Screen Tap**: Fly (Thrust) / Start / Retry
-- **H**: Toggle Hitbox Debug Mode (visualize hitboxes!)
+- **M** (or top-left button): Toggle Audio ON / OFF
+- **H** (or top-right button): Toggle Hitbox Debug Mode (visualize hitboxes!)
 - **R**: Restart when Game Over
 - **ESC**: Exit
 
